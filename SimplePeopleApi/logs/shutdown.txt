@@ -1,0 +1,54 @@
+2025-11-11T12:51:12.3899419-03:00 [ApplicationStarted]
+(no exception)
+
+2025-11-11T13:26:15.9436210-03:00 [ApplicationStopping]
+(no exception)
+
+2025-11-11T13:26:15.9484599-03:00 [ApplicationStopped]
+(no exception)
+
+2025-11-11T13:51:35.2150684-03:00 [ApplicationStarted]
+(no exception)
+
+2025-11-11T14:24:04.3762392-03:00 [ApplicationStarted]
+(no exception)
+
+2025-11-11T14:28:23.4888323-03:00 [ApplicationStopping]
+(no exception)
+
+2025-11-11T14:28:23.4955926-03:00 [ApplicationStopped]
+(no exception)
+
+2025-11-11T14:28:30.0196879-03:00 [ApplicationStarted]
+(no exception)
+
+2025-11-11T14:54:33.4327764-03:00 [ApplicationStarted]
+(no exception)
+
+2025-11-11T15:10:25.1208897-03:00 [ApplicationStarted]
+(no exception)
+
+2025-11-11T15:18:32.8678094-03:00 [ApplicationStopping]
+(no exception)
+
+2025-11-11T15:18:32.8733364-03:00 [ApplicationStopped]
+(no exception)
+
+2025-11-11T15:18:39.6766727-03:00 [ApplicationStarted]
+(no exception)
+
+2025-11-11T15:19:26.3290009-03:00 [ApplicationStopping]
+(no exception)
+
+2025-11-11T15:19:26.3331831-03:00 [ApplicationStopped]
+(no exception)
+
+2025-11-11T15:19:31.1033613-03:00 [ApplicationStarted]
+(no exception)
+
+2025-11-12T08:44:28.4328294-03:00 [ApplicationStopping]
+(no exception)
+
+2025-11-12T08:44:28.4369146-03:00 [ApplicationStopped]
+(no exception)
+

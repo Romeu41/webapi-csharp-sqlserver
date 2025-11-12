@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Contas - SimplePeople</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>/* small page-specific tweaks */ .search-row{display:flex;gap:8px;align-items:center}</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>Contas</h1>
+    <div class="toolbar"><a class="link" href="/hub.html">Voltar</a> <button id="btnLogout" class="link">Logout</button></div>
+  </div>
+  <div class="container">
+    <div id="app" class="card">
+      <h3>Contas a Pagar</h3>
+      <div class="row form-inline">
+        <div class="field"><label for="ap_num">Número</label><input id="ap_num" placeholder="Número (único)" /></div>
+  <div class="field"><label for="ap_fornecedor_input">Fornecedor (digite nome)</label><input id="ap_fornecedor_input" list="fornecedoresList" placeholder="Nome do fornecedor" aria-label="Fornecedor" /><input type="hidden" id="ap_fornecedor_code" /><input id="ap_fornecedor_code_visible" class="codeVisible" readonly placeholder="Código do fornecedor"/></div>
+        <div class="field"><label for="ap_vencimento">Vencimento</label><input id="ap_vencimento" type="date" aria-label="Data de Vencimento" /></div>
+        <div class="field"><label for="ap_prorrogacao">Prorrogação</label><input id="ap_prorrogacao" type="date" aria-label="Data de Prorrogação" /></div>
+      </div>
+      <div class="row form-inline">
+        <div class="field"><label for="ap_valor">Valor</label><input id="ap_valor" placeholder="Valor" /></div>
+        <div class="field"><label for="ap_acrescimo">Acréscimo</label><input id="ap_acrescimo" placeholder="Acréscimo" /></div>
+        <div class="field"><label for="ap_desconto">Desconto</label><input id="ap_desconto" placeholder="Desconto" /></div>
+        <div class="field"><label>&nbsp;</label><button id="ap_save" class="primary">Salvar</button></div>
+        <div class="field"><label>&nbsp;</label><button id="ap_cancel" class="link hidden">Cancelar</button></div>
+      </div>
+      <table id="apagar"><thead><tr><th>Número</th><th>Fornecedor</th><th>Vencimento</th><th>Valor</th><th>Ações</th></tr></thead><tbody></tbody></table>
+
+  <h3 class="mt-18">Contas Pagas</h3>
+      <div class="row form-inline">
+        <div class="field"><label for="pg_num">Número</label><input id="pg_num" placeholder="Número (único)" /></div>
+  <div class="field"><label for="pg_fornecedor_input">Fornecedor (digite nome)</label><input id="pg_fornecedor_input" list="fornecedoresList" placeholder="Nome do fornecedor" aria-label="Fornecedor" /><input type="hidden" id="pg_fornecedor_code" /><input id="pg_fornecedor_code_visible" class="codeVisible" readonly placeholder="Código do fornecedor"/></div>
+        <div class="field"><label for="pg_vencimento">Vencimento</label><input id="pg_vencimento" type="date" aria-label="Data de Vencimento" /></div>
+        <div class="field"><label for="pg_pagamento">Data Pagamento</label><input id="pg_pagamento" type="date" aria-label="Data de Pagamento" /></div>
+      </div>
+      <div class="row form-inline">
+        <input id="pg_valor" placeholder="Valor" />
+        <input id="pg_acrescimo" placeholder="Acréscimo" />
+        <input id="pg_desconto" placeholder="Desconto" />
+        <button id="pg_save" class="primary">Salvar</button>
+        <button id="pg_cancel" class="link hidden">Cancelar</button>
+      </div>
+      <table id="pagas"><thead><tr><th>Número</th><th>Fornecedor</th><th>Data Pagto</th><th>Valor</th><th>Ações</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <script>
+  // login overlay element (will be created dynamically if needed)
+  
+  // datalist for fornecedores
+  const fornecedoresMap = new Map();
+  const datalistTpl = '<datalist id="fornecedoresList"></datalist>';
+  const apiRoot = '/api';
+  let token = localStorage.getItem('token');
+  document.body.insertAdjacentHTML('beforeend', datalistTpl);
+
+  // create login overlay if no token
+  if(!token){ showLoginOverlay(); } else { initPage(); }
+
+  document.getElementById('btnLogout').onclick = ()=>{ localStorage.removeItem('token'); token = null; showLoginOverlay(); };
+
+  function initPage(){ document.getElementById('app').style.display = 'block'; loadFornecedores(); loadApagar(); loadPagas(); }
+
+  function showLoginOverlay(){
+    if(document.getElementById('loginOverlay')) return;
+    // hide content while not authenticated
+    const tb = document.querySelector('.topbar'); if(tb) tb.style.display='none';
+    const appEl = document.getElementById('app'); if(appEl) appEl.style.display='none';
+    const overlay = document.createElement('div'); overlay.id='loginOverlay'; overlay.className='modalOverlay';
+    overlay.innerHTML = `<div class="modalCard"><h3>Login</h3><div class="modalBody"><input id="login_user" placeholder="Usuário (nome)" /><input id="login_pass" type="password" placeholder="Senha" /><div style="display:flex;gap:8px;justify-content:flex-end"><button id="login_btn" class="primary">Entrar</button></div></div></div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('login_btn').onclick = async ()=>{
+      const u=document.getElementById('login_user').value; const p=document.getElementById('login_pass').value; 
+      if(!u||!p){ alert('Usuário e senha são obrigatórios'); return; }
+      try{
+        const res=await fetch(apiRoot+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome:u,senha:p})});
+        if(!res.ok){ alert('Login falhou: '+res.status); return; }
+        const data=await res.json(); token=data.token; localStorage.setItem('token',token); overlay.remove(); if(tb) tb.style.display='flex'; initPage();
+      } catch(e){ alert('Erro login: '+e.message); }
+    }
+  }
+
+    async function loadFornecedores(){
+      const res = await fetch(apiRoot+'/people',{headers: token?{'Authorization':'Bearer '+token}:{}});
+      if(!res.ok){ alert('Erro ao carregar fornecedores'); return; }
+      const list = await res.json();
+      const datalist = document.getElementById('fornecedoresList'); datalist.innerHTML=''; fornecedoresMap.clear();
+      list.forEach(p=>{ const opt = document.createElement('option'); opt.value = p.nome; datalist.appendChild(opt); fornecedoresMap.set(p.nome.toLowerCase(), p); });
+      // also map by "nome (codigo)" in case user picks that format
+      list.forEach(p=>{ fornecedoresMap.set((p.nome+' ('+p.codigo+')').toLowerCase(), p); });
+
+      // wire input change to set hidden code and update visible code & enabled state
+      ['ap','pg'].forEach(prefix=>{
+        const input = document.getElementById(prefix+'_fornecedor_input');
+        const hidden = document.getElementById(prefix+'_fornecedor_code');
+        const visible = document.getElementById(prefix+'_fornecedor_code_visible');
+        const numField = document.getElementById(prefix+'_num');
+        if(visible) { visible.value=''; visible.disabled = true; }
+        if(numField) { numField.disabled = true; }
+        if(!input||!hidden) return;
+        input.addEventListener('change', ()=>{
+          const key = (input.value||'').toLowerCase();
+          const matched = fornecedoresMap.get(key);
+          let code = '';
+          if(matched){ code = matched.codigo; }
+          else {
+            const found = Array.from(fornecedoresMap.values()).find(p=>p.nome.toLowerCase().startsWith((input.value||'').toLowerCase()));
+            code = found?found.codigo:'';
+          }
+          hidden.value = code;
+          if(visible){ visible.value = code; visible.disabled = !code; }
+          // set the Número textbox to the fornecedor código when available
+          if(numField){
+            numField.value = code || '';
+            numField.disabled = !code;
+          }
+        });
+      });
+    }
+
+    // ===== Contas a Pagar CRUD =====
+    document.getElementById('ap_save').onclick = async ()=>{
+      const numero = parseInt(document.getElementById('ap_num').value);
+  const codigoFornecedor = parseInt(document.getElementById('ap_fornecedor_code').value||'0');
+      const dataVenc = document.getElementById('ap_vencimento').value;
+      const dataPror = document.getElementById('ap_prorrogacao').value||null;
+      const valor = parseFloat(document.getElementById('ap_valor').value||'0');
+      const acres = parseFloat(document.getElementById('ap_acrescimo').value||'0');
+      const desc = parseFloat(document.getElementById('ap_desconto').value||'0');
+      if(!numero || !codigoFornecedor || !dataVenc || valor<=0){ alert('Número, Fornecedor, Vencimento e Valor são obrigatórios'); return; }
+      const payload = { numero, codigoFornecedor, dataVencimento: dataVenc, dataProrrogacao: dataPror, valor, acrescimo: acres||null, desconto: desc||null };
+      // try create, if exists then update
+      const createRes = await fetch(apiRoot+'/contas/apagar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(payload)});
+      if(createRes.status===201){ resetApForm(); loadApagar(); }
+      else if(createRes.status===409){ // already exists -> try update
+        const upd = await fetch(apiRoot+`/contas/apagar/${numero}`,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(payload)});
+        if(upd.ok || upd.status===204){ resetApForm(); loadApagar(); } else { const t = await upd.text(); alert('Erro: '+upd.status+' '+t); }
+      } else { const t = await createRes.text(); alert('Erro criar: '+createRes.status+' '+t); }
+    };
+
+    async function loadApagar(){
+      const res = await fetch(apiRoot+'/contas/apagar',{headers: token?{'Authorization':'Bearer '+token}:{}});
+      if(!res.ok){ console.warn('apagar load failed',res.status); return; }
+      const list = await res.json();
+      const tbody = document.querySelector('#apagar tbody'); tbody.innerHTML='';
+      list.forEach(c=>{ const tr = document.createElement('tr'); tr.innerHTML = `<td>${c.numero}</td><td>${c.fornecedor?.nome||c.codigoFornecedor}</td><td>${new Date(c.dataVencimento).toLocaleDateString()}</td><td>${c.valor}</td><td><button data-num='${c.numero}' class='ap_edit'>Editar</button> <button data-num='${c.numero}' class='ap_del'>Excluir</button></td>`; tbody.appendChild(tr); });
+      document.querySelectorAll('.ap_del').forEach(b=>b.onclick=async e=>{ const n=e.target.dataset.num; if(confirm('Excluir?')){ await fetch(apiRoot+`/contas/apagar/${n}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}}); loadApagar(); }});
+      document.querySelectorAll('.ap_edit').forEach(b=>b.onclick=async e=>{ const n=e.target.dataset.num; const r = await fetch(apiRoot+`/contas/apagar/${n}`,{headers:{'Authorization':'Bearer '+token}}); if(r.ok){ const obj = await r.json(); beginApEdit(obj); } });
+    }
+
+  function beginApEdit(obj){ document.getElementById('ap_num').value = obj.numero; const f = Array.from(fornecedoresMap.values()).find(p=>p.codigo===obj.codigoFornecedor); document.getElementById('ap_fornecedor_input').value = f?f.nome:obj.codigoFornecedor; document.getElementById('ap_fornecedor_code').value = obj.codigoFornecedor; document.getElementById('ap_vencimento').value = obj.dataVencimento.slice(0,10); document.getElementById('ap_prorrogacao').value = obj.dataProrrogacao?obj.dataProrrogacao.slice(0,10):''; document.getElementById('ap_valor').value = obj.valor; document.getElementById('ap_acrescimo').value = obj.acrescimo||''; document.getElementById('ap_desconto').value = obj.desconto||''; document.getElementById('ap_cancel').classList.remove('hidden'); }
+    function resetApForm(){ document.getElementById('ap_num').value=''; document.getElementById('ap_fornecedor').value=''; document.getElementById('ap_vencimento').value=''; document.getElementById('ap_prorrogacao').value=''; document.getElementById('ap_valor').value=''; document.getElementById('ap_acrescimo').value=''; document.getElementById('ap_desconto').value=''; document.getElementById('ap_cancel').classList.add('hidden'); }
+    document.getElementById('ap_cancel').onclick = ()=> resetApForm();
+
+    // ===== Contas Pagas CRUD =====
+    document.getElementById('pg_save').onclick = async ()=>{
+      const numero = parseInt(document.getElementById('pg_num').value);
+      const codigoFornecedor = parseInt(document.getElementById('pg_fornecedor_code').value||'0');
+      const dataVenc = document.getElementById('pg_vencimento').value;
+      const dataPag = document.getElementById('pg_pagamento').value;
+      const valor = parseFloat(document.getElementById('pg_valor').value||'0');
+      const acres = parseFloat(document.getElementById('pg_acrescimo').value||'0');
+      const desc = parseFloat(document.getElementById('pg_desconto').value||'0');
+      if(!numero || !codigoFornecedor || !dataVenc || !dataPag || valor<=0){ alert('Número, Fornecedor, Vencimento, Data Pagamento e Valor são obrigatórios'); return; }
+      const payload = { numero, codigoFornecedor, dataVencimento: dataVenc, dataPagamento: dataPag, valor, acrescimo: acres||null, desconto: desc||null };
+      const createRes = await fetch(apiRoot+'/contas/pagas',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(payload)});
+      if(createRes.status===201){ resetPgForm(); loadPagas(); }
+      else if(createRes.status===409){ const upd = await fetch(apiRoot+`/contas/pagas/${numero}`,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(payload)}); if(upd.ok||upd.status===204){ resetPgForm(); loadPagas(); } }
+      else { const t = await createRes.text(); alert('Erro criar: '+createRes.status+' '+t); }
+    };
+
+    async function loadPagas(){
+      const res = await fetch(apiRoot+'/contas/pagas',{headers: token?{'Authorization':'Bearer '+token}:{}});
+      if(!res.ok){ console.warn('pagas load failed',res.status); return; }
+      const list = await res.json();
+      const tbody = document.querySelector('#pagas tbody'); tbody.innerHTML='';
+      list.forEach(c=>{ const tr = document.createElement('tr'); tr.innerHTML = `<td>${c.numero}</td><td>${c.fornecedor?.nome||c.codigoFornecedor}</td><td>${new Date(c.dataPagamento).toLocaleDateString()}</td><td>${c.valor}</td><td><button data-num='${c.numero}' class='pg_edit'>Editar</button> <button data-num='${c.numero}' class='pg_del'>Excluir</button></td>`; tbody.appendChild(tr); });
+      document.querySelectorAll('.pg_del').forEach(b=>b.onclick=async e=>{ const n=e.target.dataset.num; if(confirm('Excluir?')){ await fetch(apiRoot+`/contas/pagas/${n}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}}); loadPagas(); }});
+      document.querySelectorAll('.pg_edit').forEach(b=>b.onclick=async e=>{ const n=e.target.dataset.num; const r = await fetch(apiRoot+`/contas/pagas/${n}`,{headers:{'Authorization':'Bearer '+token}}); if(r.ok){ const obj = await r.json(); beginPgEdit(obj); } });
+    }
+
+  function beginPgEdit(obj){ document.getElementById('pg_num').value = obj.numero; const f = Array.from(fornecedoresMap.values()).find(p=>p.codigo===obj.codigoFornecedor); document.getElementById('pg_fornecedor_input').value = f?f.nome:obj.codigoFornecedor; document.getElementById('pg_fornecedor_code').value = obj.codigoFornecedor; document.getElementById('pg_vencimento').value = obj.dataVencimento.slice(0,10); document.getElementById('pg_pagamento').value = obj.dataPagamento.slice(0,10); document.getElementById('pg_valor').value = obj.valor; document.getElementById('pg_acrescimo').value = obj.acrescimo||''; document.getElementById('pg_desconto').value = obj.desconto||''; document.getElementById('pg_cancel').classList.remove('hidden'); }
+  function resetPgForm(){ document.getElementById('pg_num').value=''; document.getElementById('pg_fornecedor_input').value=''; document.getElementById('pg_fornecedor_code').value=''; document.getElementById('pg_vencimento').value=''; document.getElementById('pg_pagamento').value=''; document.getElementById('pg_valor').value=''; document.getElementById('pg_acrescimo').value=''; document.getElementById('pg_desconto').value=''; document.getElementById('pg_cancel').classList.add('hidden'); }
+    document.getElementById('pg_cancel').onclick = ()=> resetPgForm();
+
+  </script>
+</body>
+</html>

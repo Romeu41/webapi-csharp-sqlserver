@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Central - SimplePeople</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style> .hub .card{box-shadow:none;border:1px solid #eef2ff} </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>SimplePeople</h1>
+  </div>
+
+  <div class="container hub">
+    <div class="card">
+      <h2>Pessoas</h2>
+      <p class="small">Gerencie o cadastro de pessoas</p>
+      <div class="row"><a class="bigbtn" href="/pessoas.html">Ir para Pessoas</a></div>
+    </div>
+    <div class="card">
+      <h2>Contas</h2>
+      <p class="small">Consultas de Contas a Pagar / Pagas</p>
+      <div class="row"><a class="bigbtn" href="/contas.html">Ir para Contas</a></div>
+    </div>
+  </div>
+
+  <script>
+    const apiRoot = '/api';
+    let token = localStorage.getItem('token');
+
+    // esconder container por padrão até sabermos se o usuário está logado
+    const container = document.querySelector('.container');
+    if (container) container.style.display = 'none';
+
+    // create logout button in topbar (safe checks)
+    const tb = document.querySelector('.topbar');
+    if (tb) {
+      const btn = document.createElement('button');
+      btn.id = 'btnLogout';
+      btn.className = 'link';
+      btn.textContent = 'Logout';
+
+      let toolbar = tb.querySelector('.toolbar');
+      if (!toolbar) {
+        toolbar = document.createElement('div');
+        toolbar.className = 'toolbar';
+        tb.appendChild(toolbar);
+      }
+      toolbar.appendChild(btn);
+
+      document.getElementById('btnLogout').onclick = () => {
+        localStorage.removeItem('token');
+        token = null;
+        showLoginOverlay();
+      };
+    }
+
+    if (!token) {
+      showLoginOverlay();
+    } else {
+      if (container) container.style.display = 'block';
+    }
+
+    function showLoginOverlay() {
+      if (document.getElementById('loginOverlay')) return;
+
+      const overlay = document.createElement('div');
+      overlay.id = 'loginOverlay';
+      // usar propriedades em vez de atribuir string (mais seguro)
+      Object.assign(overlay.style, {
+        position: 'fixed',
+        inset: '0',
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: '9999'
+      });
+
+      overlay.innerHTML = `
+        <div style="background:#fff;padding:20px;border-radius:8px;min-width:320px;max-width:420px;box-shadow:0 6px 18px rgba(0,0,0,0.2)">
+          <h3>Login</h3>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <input id="login_user" placeholder="Usuário (nome)" />
+            <input id="login_pass" type="password" placeholder="Senha" />
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button id="login_btn" class="primary">Entrar</button>
+            </div>
+          </div>
+        </div>`;
+
+      document.body.appendChild(overlay);
+
+      // seleciona o botão DENTRO do overlay (garante que exista)
+const loginBtn = overlay.querySelector('#login_btn');
+if (loginBtn) {
+  loginBtn.onclick = async () => {
+    const u = overlay.querySelector('#login_user').value;
+    const p = overlay.querySelector('#login_pass').value;
+    if (!u || !p) {
+      alert('Usuário e senha são obrigatórios');
+      return;
+    }
+    try {
+      const res = await fetch(apiRoot + '/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        // <-- nome dos campos trocados para os que o backend espera
+        body: JSON.stringify({ Username: u, Password: p })
+      });
+
+      // se não OK, tenta ler o JSON de erro e mostrar mensagem amigável
+      if (!res.ok) {
+        let errText = 'Login falhou: ' + res.status;
+        try {
+          const err = await res.json();
+          // concatena mensagens de validação se houver
+          if (err.errors) {
+            const msgs = [];
+            for (const k in err.errors) {
+              msgs.push(`${k}: ${err.errors[k].join(' ')}`);
+            }
+            errText += '\n' + msgs.join('\n');
+          } else if (err.title || err.message) {
+            errText += '\n' + (err.title || err.message);
+          } else {
+            errText += '\n' + JSON.stringify(err);
+          }
+        } catch (e) {
+          // não conseguiu parsear JSON, pega texto cru
+          try { errText += '\n' + await res.text(); } catch {}
+        }
+        alert(errText);
+        return;
+      }
+
+      const data = await res.json();
+      token = data.token;
+      localStorage.setItem('token', token);
+      overlay.remove();
+      if (container) container.style.display = 'block';
+    } catch (e) {
+      alert('Erro login: ' + (e && e.message ? e.message : e));
+    }
+  };
+}
+
+    }
+  </script>
+</body>
+</html>

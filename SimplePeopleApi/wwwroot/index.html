@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Central - SimplePeople</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style> .hub .card{box-shadow:none;border:1px solid #eef2ff} </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>SimplePeople</h1>
+  </div>
+
+  <div class="container hub">
+    <div class="card">
+      <h2>Pessoas</h2>
+      <p class="small">Gerencie o cadastro de pessoas</p>
+      <div style="margin-top:12px"><a class="bigbtn" href="/pessoas.html">Ir para Pessoas</a></div>
+    </div>
+    <div class="card">
+      <h2>Contas</h2>
+      <p class="small">Consultas de Contas a Pagar / Pagas</p>
+      <div style="margin-top:12px"><a class="bigbtn" href="/contas.html">Ir para Contas</a></div>
+    </div>
+  </div>
+</body>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Login - SimplePeople</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>SimplePeople</h1>
+  </div>
+  <script>
+    // If there's no token, open the dedicated login page first
+    const token = localStorage.getItem('token');
+    if(!token){
+      // redirect to /login which has the login form and will come back to /
+      if(location.pathname !== '/login' && location.pathname !== '/login.html'){
+        location.href = '/login.html';
+      }
+    } else {
+      // show hub content
+      document.querySelector('.container').style.display='block';
+    }
+  </script>
+      else { alert('Login falhou'); }
+    };
+
+    document.getElementById('btnRegister').onclick = ()=>{ window.location.href = '/pessoas.html'; };
+  </script>
+</body>
+</html>

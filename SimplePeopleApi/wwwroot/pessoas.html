@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Pessoas - SimplePeople</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Pessoas</h1>
+    <div class="toolbar"><a class="link" href="/hub.html">Voltar</a> <button id="btnLogout" class="link">Logout</button></div>
+  </div>
+
+  <div class="container">
+
+  <div id="app" class="card">
+    <div class="row"><h2>Pessoas</h2><div class="spacer"></div><button id="btnLogout" class="link">Logout</button></div>
+    <h3>Adicionar / Editar pessoa</h3>
+    <div class="form-inline row">
+      <input id="pname" placeholder="Nome" />
+      <input id="pcpf" placeholder="CPF (apenas números)" />
+      <input id="pdate" type="date" placeholder="Data de Nascimento" />
+  <select id="puf" aria-label="UF">
+        <option value="">UF</option>
+        <option value="AC">AC</option>
+        <option value="AL">AL</option>
+        <option value="AP">AP</option>
+        <option value="AM">AM</option>
+        <option value="BA">BA</option>
+        <option value="CE">CE</option>
+        <option value="DF">DF</option>
+        <option value="ES">ES</option>
+        <option value="GO">GO</option>
+        <option value="MA">MA</option>
+        <option value="MT">MT</option>
+        <option value="MS">MS</option>
+        <option value="MG">MG</option>
+        <option value="PA">PA</option>
+        <option value="PB">PB</option>
+        <option value="PR">PR</option>
+        <option value="PE">PE</option>
+        <option value="PI">PI</option>
+        <option value="RJ">RJ</option>
+        <option value="RN">RN</option>
+        <option value="RS">RS</option>
+        <option value="RO">RO</option>
+        <option value="RR">RR</option>
+        <option value="SC">SC</option>
+        <option value="SP">SP</option>
+        <option value="SE">SE</option>
+        <option value="TO">TO</option>
+      </select>
+    </div>
+    <input type="hidden" id="peditid" />
+    <div class="row">
+      <button id="btnSave" class="primary">Salvar</button>
+      <button id="btnCancelEdit" class="link hidden">Cancelar</button>
+    </div>
+
+    <h3>Lista</h3>
+    <table id="peopleTable"><thead><tr><th>Código</th><th>Nome</th><th>CPF</th><th>UF</th><th>Data Nasc.</th><th>Data Criação</th><th>Ações</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  </div> <!-- container -->
+
+  <script>
+    const apiRoot = '/api';
+    let token = localStorage.getItem('token');
+    // create login overlay if needed
+    if(!token){ showLoginOverlay(); } else { start(); }
+
+    document.getElementById('btnLogout').onclick = ()=>{ localStorage.removeItem('token'); token = null; showLoginOverlay(); };
+
+    function start(){ document.getElementById('app').style.display = 'block'; document.querySelector('.topbar').style.display='block'; loadPeople(); }
+
+    function showLoginOverlay(){
+      // hide content while not authenticated
+      const tb = document.querySelector('.topbar'); if(tb) tb.style.display='none';
+      const appEl = document.getElementById('app'); if(appEl) appEl.style.display='none';
+      if(document.getElementById('loginOverlay')) return;
+      const overlay=document.createElement('div'); overlay.id='loginOverlay'; overlay.className='modalOverlay';
+      overlay.innerHTML=`<div class="modalCard"><h3>Login</h3><div class="modalBody"><input id="login_user" placeholder="Usuário (nome)" /><input id="login_pass" type="password" placeholder="Senha" /><div style="display:flex;gap:8px;justify-content:flex-end"><button id="login_btn" class="primary">Entrar</button></div></div></div>`;
+      document.body.appendChild(overlay);
+      document.getElementById('login_btn').onclick = async ()=>{
+        const u=document.getElementById('login_user').value; const p=document.getElementById('login_pass').value;
+        if(!u||!p){ alert('Usuário e senha são obrigatórios'); return; }
+        try{ const res=await fetch(apiRoot+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome:u,senha:p})}); if(!res.ok){ alert('Login falhou: '+res.status); return; } const data=await res.json(); token=data.token; localStorage.setItem('token',token); overlay.remove(); start(); }
+        catch(e){ alert('Erro login: '+e.message); }
+      };
+    }
+
+    document.getElementById('btnSave').onclick = async ()=>{
+      const nome = document.getElementById('pname').value.trim();
+      const cpf  = document.getElementById('pcpf').value.trim();
+      const data = document.getElementById('pdate').value;
+      const uf   = document.getElementById('puf').value;
+      // client-side validation
+      if(!nome){ alert('Nome é obrigatório'); return; }
+      if(!cpf || !/^[0-9]{11}$/.test(cpf)){ alert('CPF inválido: informe 11 números'); return; }
+      if(!data){ alert('Data de Nascimento é obrigatória'); return; }
+      if(!uf || uf.length!==2){ alert('UF é obrigatória'); return; }
+
+      const editId = document.getElementById('peditid').value;
+      const payload = { nome, cpf, dataDeNascimento: data, uf };
+      if(editId){
+        const res = await fetch(apiRoot+'/people/'+editId,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(payload)});
+        if(res.status===204){ resetForm(); loadPeople(); }
+        else if(res.status===409){ alert('CPF já existe'); }
+        else { const txt = await res.text(); alert('Erro: '+res.status+' '+txt); }
+      } else {
+        const res = await fetch(apiRoot+'/people',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(payload)});
+        if(res.status===201){ resetForm(); loadPeople(); }
+        else if(res.status===409){ alert('CPF já existe'); }
+        else { const txt = await res.text(); alert('Erro: '+res.status+' '+txt); }
+      }
+    };
+
+    document.getElementById('btnCancelEdit').onclick = ()=>{ resetForm(); };
+
+    async function loadPeople(){
+      const res = await fetch(apiRoot+'/people',{headers: token?{'Authorization':'Bearer '+token}:{}});
+        const list = await res.json();
+        const tbody = document.querySelector('#peopleTable tbody'); tbody.innerHTML='';
+        list.forEach(p=>{
+          const tr = document.createElement('tr');
+          const dtn = new Date(p.dataDeNascimento).toLocaleDateString();
+          const dtc = p.dataDeCriacao ? new Date(p.dataDeCriacao).toLocaleString() : '';
+          tr.innerHTML = `<td>${p.codigo}</td><td>${p.nome}</td><td>${p.cpf}</td><td>${p.uf||''}</td><td>${dtn}</td><td>${dtc}</td><td><button data-id='${p.codigo}' class='edit'>Editar</button> <button data-id='${p.codigo}' class='del'>Excluir</button></td>`;
+          tbody.appendChild(tr);
+        });
+        document.querySelectorAll('.del').forEach(b=>b.onclick=async e=>{ const id=e.target.dataset.id; if(confirm('Confirma exclusão?')){ await fetch(apiRoot+'/people/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+token}}); loadPeople(); }});
+        document.querySelectorAll('.edit').forEach(b=>b.onclick=async e=>{ const id=e.target.dataset.id; const res = await fetch(apiRoot+'/people/'+id,{headers:{'Authorization':'Bearer '+token}}); if(res.ok){ const p = await res.json(); beginEdit(p); } else { alert('Erro ao carregar pessoa'); } });
+    }
+
+    function beginEdit(p){
+      document.getElementById('peditid').value = p.codigo;
+      document.getElementById('pname').value = p.nome || '';
+      document.getElementById('pcpf').value = p.cpf || '';
+      document.getElementById('puf').value = p.uf || '';
+      // set date input to yyyy-mm-dd
+      if(p.dataDeNascimento){
+        const d = new Date(p.dataDeNascimento);
+        const iso = d.toISOString().slice(0,10);
+        document.getElementById('pdate').value = iso;
+      }
+      document.getElementById('btnCancelEdit').style.display = 'inline-block';
+      document.getElementById('btnSave').textContent = 'Atualizar';
+    }
+
+    function resetForm(){
+      document.getElementById('peditid').value = '';
+      document.getElementById('pname').value = '';
+      document.getElementById('pcpf').value = '';
+      document.getElementById('pdate').value = '';
+      document.getElementById('puf').value = '';
+      document.getElementById('btnCancelEdit').style.display = 'none';
+      document.getElementById('btnSave').textContent = 'Salvar';
+    }
+
+  // start handled by showLoginOverlay/start flow
+  </script>
+</body>
+</html>

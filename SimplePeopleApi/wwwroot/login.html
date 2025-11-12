@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - SimplePeople</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>SimplePeople</h1>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h2>Login</h2>
+      <input id="login_user" placeholder="Usuário (nome)" />
+      <input id="login_pass" type="password" placeholder="Senha" />
+      <div class="row">
+        <button id="btnLogin" class="primary">Entrar</button>
+      </div>
+      <small>Após login você será redirecionado para a central.</small>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const apiRoot = '/api';
+      const btn = document.getElementById('btnLogin');
+      // checagem defensiva caso o script seja executado antes do DOM (não deveria aqui, mas segura)
+      if (!btn) {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+
+      function init() {
+        const button = document.getElementById('btnLogin');
+        button.addEventListener('click', async function () {
+          const nome = document.getElementById('login_user').value;
+          const senha = document.getElementById('login_pass').value;
+          if (!nome || !senha) { alert('Usuário e senha são obrigatórios'); return; }
+          try {
+            const res = await fetch(apiRoot + '/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({ Username: nome, Password: senha })
+            });
+            if (!res.ok) {
+              const t = await res.text();
+              alert('Login falhou: ' + res.status + ' ' + t);
+              return;
+            }
+            const data = await res.json();
+            localStorage.setItem('token', data.token);
+            window.location.href = '/';
+          } catch (e) {
+            alert('Erro no login: ' + (e && e.message ? e.message : e));
+          }
+        }, false);
+      }
+    })();
+  </script>
+</body>
+</html>
